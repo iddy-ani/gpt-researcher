@@ -73,9 +73,16 @@ async def create_chat_completion(
         provider_kwargs['max_tokens'] = None
 
     if llm_provider == "openai":
-        base_url = os.environ.get("OPENAI_BASE_URL", None)
-        if base_url:
-            provider_kwargs['openai_api_base'] = base_url
+        # Default to Intel's internal API endpoint if OPENAI_BASE_URL is not set
+        base_url = os.environ.get("OPENAI_BASE_URL", "https://expertgpt.apps1-ir-int.icloud.intel.com/v1")
+        provider_kwargs['openai_api_base'] = base_url
+        
+        # For Intel's internal API, disable SSL verification
+        if "expertgpt.apps1-ir-int.icloud.intel.com" in base_url:
+            import httpx
+            # Create HTTP client with SSL verification disabled
+            http_client = httpx.AsyncClient(verify=False)
+            provider_kwargs['http_async_client'] = http_client
 
     provider = get_llm(llm_provider, **provider_kwargs)
     response = ""

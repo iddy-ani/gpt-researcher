@@ -107,7 +107,32 @@ async def generate_sub_queries(
                 **kwargs
             )
 
-    return json_repair.loads(response)
+    try:
+        result = json_repair.loads(response)
+        
+        # Ensure we always return a list
+        if isinstance(result, list):
+            return result
+        elif isinstance(result, dict):
+            # If it's a dict, try to extract queries from common keys
+            if 'queries' in result:
+                queries = result['queries']
+                if isinstance(queries, list):
+                    return queries
+            elif 'sub_queries' in result:
+                queries = result['sub_queries']
+                if isinstance(queries, list):
+                    return queries
+            # If we can't extract a list, fallback to original query
+            logger.warning(f"LLM returned a dict instead of list: {result}. Using original query.")
+            return [query]
+        else:
+            # If it's neither list nor dict, fallback to original query
+            logger.warning(f"LLM returned unexpected format: {result}. Using original query.")
+            return [query]
+    except Exception as e:
+        logger.warning(f"Failed to parse LLM response: {e}. Using original query.")
+        return [query]
 
 async def plan_research_outline(
     query: str,

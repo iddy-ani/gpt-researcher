@@ -2,7 +2,7 @@ from .base import BaseConfig
 
 DEFAULT_CONFIG: BaseConfig = {
     "RETRIEVER": "tavily",
-    "EMBEDDING": "openai:text-embedding-3-small",
+    "EMBEDDING": "azure_openai:text-embedding-3-large",
     "SIMILARITY_THRESHOLD": 0.42,
     "FAST_LLM": "openai:gpt-5-mini",
     "SMART_LLM": "openai:gpt-5",  # Has support for long responses (2k+ words).

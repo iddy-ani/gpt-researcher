@@ -32,28 +32,46 @@ class Memory:
         match embedding_provider:
             case "custom":
                 from langchain_openai import OpenAIEmbeddings
+                import httpx
+
+                base_url = os.getenv("OPENAI_BASE_URL", "http://localhost:1234/v1")
+                embedding_kwargs = embdding_kwargs.copy()
+                
+                # For Intel's internal API, disable SSL verification
+                if "expertgpt.apps1-ir-int.icloud.intel.com" in base_url:
+                    http_client = httpx.Client(verify=False)
+                    embedding_kwargs['http_client'] = http_client
 
                 _embeddings = OpenAIEmbeddings(
                     model=model,
                     openai_api_key=os.getenv("OPENAI_API_KEY", "custom"),
-                    openai_api_base=os.getenv(
-                        "OPENAI_BASE_URL", "http://localhost:1234/v1"
-                    ),  # default for lmstudio
+                    openai_api_base=base_url,
                     check_embedding_ctx_length=False,
-                    **embdding_kwargs,
+                    **embedding_kwargs,
                 )  # quick fix for lmstudio
             case "openai":
                 from langchain_openai import OpenAIEmbeddings
+                import httpx
+                
+                # Handle Intel's internal API endpoint with SSL bypass
+                base_url = os.environ.get("OPENAI_BASE_URL")
+                embedding_kwargs = embdding_kwargs.copy()
+                
+                if base_url and "expertgpt.apps1-ir-int.icloud.intel.com" in base_url:
+                    # For Intel's internal API, disable SSL verification
+                    http_client = httpx.Client(verify=False)
+                    embedding_kwargs['http_client'] = http_client
+                    embedding_kwargs['openai_api_base'] = base_url
 
-                _embeddings = OpenAIEmbeddings(model=model, **embdding_kwargs)
+                _embeddings = OpenAIEmbeddings(model=model, **embedding_kwargs)
             case "azure_openai":
                 from langchain_openai import AzureOpenAIEmbeddings
 
                 _embeddings = AzureOpenAIEmbeddings(
-                    model=model,
-                    azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
-                    openai_api_key=os.environ["AZURE_OPENAI_API_KEY"],
-                    openai_api_version=os.environ["AZURE_OPENAI_API_VERSION"],
+                    azure_deployment=model,
+                    azure_endpoint="https://appi-gpt4.openai.azure.com/",
+                    api_key='1ec57c7402ed46ecbae6b09b12cb0e3c',
+                    api_version="2024-02-15-preview",
                     **embdding_kwargs,
                 )
             case "cohere":
