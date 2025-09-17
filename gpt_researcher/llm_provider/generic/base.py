@@ -98,7 +98,7 @@ class GenericLLMProvider:
             from langchain_openai import ChatOpenAI
             
             # Handle SSL verification for Intel's internal API
-            base_url = kwargs.get('openai_api_base') or os.environ.get("OPENAI_BASE_URL")
+            base_url = kwargs.get('openai_api_base') or "expertgpt.apps1-ir-int.icloud.intel.com"
             if base_url and "expertgpt.apps1-ir-int.icloud.intel.com" in base_url:
                 import httpx
                 # Create HTTP client with SSL verification disabled for Intel API
@@ -108,7 +108,7 @@ class GenericLLMProvider:
             
             # Use EGPT_API_KEY instead of OPENAI_API_KEY for Intel's internal API
             if 'openai_api_key' not in kwargs:
-                kwargs['openai_api_key'] = os.environ.get('EGPT_API_KEY', os.environ.get('OPENAI_API_KEY'))
+                kwargs['openai_api_key'] = os.environ.get('EGPT_API_KEY')
 
             llm = ChatOpenAI(**kwargs)
         elif provider == "anthropic":

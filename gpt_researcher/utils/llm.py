@@ -74,7 +74,7 @@ async def create_chat_completion(
 
     if llm_provider == "openai":
         # Default to Intel's internal API endpoint if OPENAI_BASE_URL is not set
-        base_url = os.environ.get("OPENAI_BASE_URL", "https://expertgpt.apps1-ir-int.icloud.intel.com/v1")
+        base_url = "https://expertgpt.apps1-ir-int.icloud.intel.com/v1"
         provider_kwargs['openai_api_base'] = base_url
         
         # For Intel's internal API, disable SSL verification

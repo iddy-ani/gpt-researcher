@@ -34,7 +34,7 @@ class Memory:
                 from langchain_openai import OpenAIEmbeddings
                 import httpx
 
-                base_url = os.getenv("OPENAI_BASE_URL", "http://localhost:1234/v1")
+                base_url = "https://expertgpt.apps1-ir-int.icloud.intel.com/v1"
                 embedding_kwargs = embdding_kwargs.copy()
                 
                 # For Intel's internal API, disable SSL verification
@@ -44,7 +44,7 @@ class Memory:
 
                 _embeddings = OpenAIEmbeddings(
                     model=model,
-                    openai_api_key=os.getenv("EGPT_API_KEY", os.getenv("OPENAI_API_KEY", "custom")),
+                    openai_api_key=os.getenv("EGPT_API_KEY"),
                     openai_api_base=base_url,
                     check_embedding_ctx_length=False,
                     **embedding_kwargs,
@@ -54,7 +54,7 @@ class Memory:
                 import httpx
                 
                 # Handle Intel's internal API endpoint with SSL bypass
-                base_url = os.environ.get("OPENAI_BASE_URL")
+                base_url = "https://expertgpt.apps1-ir-int.icloud.intel.com/v1"
                 embedding_kwargs = embdding_kwargs.copy()
                 
                 if base_url and "expertgpt.apps1-ir-int.icloud.intel.com" in base_url:
@@ -65,7 +65,7 @@ class Memory:
                 
                 # Use EGPT_API_KEY instead of OPENAI_API_KEY for Intel's internal API
                 if 'openai_api_key' not in embedding_kwargs:
-                    embedding_kwargs['openai_api_key'] = os.environ.get('EGPT_API_KEY', os.environ.get('OPENAI_API_KEY'))
+                    embedding_kwargs['openai_api_key'] = os.environ.get('EGPT_API_KEY')
 
                 _embeddings = OpenAIEmbeddings(model=model, **embedding_kwargs)
             case "azure_openai":
