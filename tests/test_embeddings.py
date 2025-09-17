@@ -11,7 +11,7 @@ async def test_embeddings():
     print("=== Testing Embeddings Configuration ===")
     
     # Test current configuration
-    embedding_config = os.getenv('EMBEDDING', 'openai:text-embedding-3-small')
+    embedding_config = 'text-embedding-3-large'
     print(f"Current EMBEDDING config: {embedding_config}")
     
     provider, model = embedding_config.split(':', 1)
@@ -48,9 +48,9 @@ async def test_azure_embeddings():
     """Test Azure OpenAI embeddings if configured"""
     print("\n=== Testing Azure OpenAI Embeddings ===")
     
-    azure_endpoint = os.getenv('AZURE_OPENAI_ENDPOINT')
-    azure_key = os.getenv('AZURE_OPENAI_API_KEY')
-    azure_version = os.getenv('AZURE_OPENAI_API_VERSION')
+    azure_endpoint = 'https://appi-gpt4.openai.azure.com/'
+    azure_key = 'b448d4e96f3a416786f75bffa9108fcc'
+    azure_version = '2024-02-15-preview'
     
     if not all([azure_endpoint, azure_key, azure_version]):
         print("⚠️ Azure OpenAI not configured. Skipping Azure test.")

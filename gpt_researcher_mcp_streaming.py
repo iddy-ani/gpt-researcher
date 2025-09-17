@@ -50,6 +50,12 @@ try:
     print("✅ Free web search available", file=sys.stderr)
     print("🔄 Using RETRIEVER=custom (with free search)", file=sys.stderr)
     
+    # Set up ExpertGPT configuration for LLM calls
+    import os
+    os.environ['OPENAI_BASE_URL'] = 'https://expertgpt.apps1-ir-int.icloud.intel.com/v1'
+    os.environ['OPENAI_API_KEY'] = os.environ.get('EGPT_API_KEY', '')
+    print("✅ ExpertGPT LLM endpoint configured", file=sys.stderr)
+    
 except ImportError:
     FREE_SEARCH_AVAILABLE = False
     print("⚠️ Free web search not available", file=sys.stderr)
@@ -62,20 +68,59 @@ _write_stream = None
 _is_executable_mode = False
 
 # Free search integration
+def debug_llm_configuration(researcher):
+    """Debug LLM configuration to understand what's being used"""
+    try:
+        print("\n🔍 === LLM CONFIGURATION DEBUG ===", file=sys.stderr)
+        print(f"📋 Smart LLM: {researcher.cfg.smart_llm}", file=sys.stderr)
+        print(f"📋 Smart LLM Provider: {researcher.cfg.smart_llm_provider}", file=sys.stderr)
+        print(f"📋 Smart LLM Model: {researcher.cfg.smart_llm_model}", file=sys.stderr)
+        print(f"📋 Fast LLM: {researcher.cfg.fast_llm}", file=sys.stderr)
+        print(f"📋 Strategic LLM: {researcher.cfg.strategic_llm}", file=sys.stderr)
+        print(f"📋 Temperature: {researcher.cfg.temperature}", file=sys.stderr)
+        
+        # Check environment variables
+        import os
+        print(f"🌐 OPENAI_API_KEY: {'Set' if os.environ.get('OPENAI_API_KEY') else 'Not set'}", file=sys.stderr)
+        print(f"🌐 EGPT_API_KEY: {'Set' if os.environ.get('EGPT_API_KEY') else 'Not set'}", file=sys.stderr)
+        print(f"🌐 OPENAI_BASE_URL: {os.environ.get('OPENAI_BASE_URL', 'Not set')}", file=sys.stderr)
+        print(f"🌐 OPENAI_API_BASE: {os.environ.get('OPENAI_API_BASE', 'Not set')}", file=sys.stderr)
+        
+        # Test LLM initialization
+        try:
+            from gpt_researcher.utils.llm import get_llm
+            llm = get_llm(researcher.cfg.smart_llm_provider, model=researcher.cfg.smart_llm_model)
+            print(f"✅ LLM initialized successfully: {type(llm)}", file=sys.stderr)
+            
+            # Check if it has the right base URL
+            if hasattr(llm, 'openai_api_base'):
+                print(f"📍 LLM Base URL: {llm.openai_api_base}", file=sys.stderr)
+            elif hasattr(llm, 'base_url'):
+                print(f"📍 LLM Base URL: {llm.base_url}", file=sys.stderr)
+            else:
+                print(f"⚠️ No base URL found in LLM configuration", file=sys.stderr)
+                
+        except Exception as e:
+            print(f"❌ LLM initialization failed: {e}", file=sys.stderr)
+            
+        print("🔍 === END LLM DEBUG ===\n", file=sys.stderr)
+        
+    except Exception as e:
+        print(f"❌ LLM debug failed: {e}", file=sys.stderr)
+
 def use_free_search_if_available(researcher):
     """Configure researcher to use our custom retriever with free search"""
     if FREE_SEARCH_AVAILABLE:
         try:
             # Force the researcher to use our custom retriever
-            print(f"🔄 Forcing researcher to use custom retriever (free search)", file=sys.stderr)
+            print(f"🔄 Configuring researcher for custom retriever (free search)", file=sys.stderr)
             
             # Override the researcher's configuration to use custom retriever
             researcher.cfg.retriever = "custom"
             researcher.cfg.retrievers = ["custom"]
             
-            # Set environment variable as backup
-            import os
-            os.environ['RETRIEVER'] = 'custom'
+            # Debug LLM configuration
+            debug_llm_configuration(researcher)
             
             print("✅ Researcher configured to use custom retriever with free search", file=sys.stderr)
             return True
@@ -158,6 +203,14 @@ async def conduct_research_task(arguments: dict) -> list[dict]:
         
         # Initialize GPT Researcher
         researcher = GPTResearcher(query=query, report_type=report_type)
+        
+        # Debug initial configuration
+        print(f"\n🔍 === INITIAL RESEARCHER CONFIG ===", file=sys.stderr)
+        print(f"📋 Report type: {report_type}", file=sys.stderr)
+        print(f"📋 Retriever: {researcher.cfg.retriever}", file=sys.stderr)
+        print(f"📋 LLM Provider: {researcher.cfg.smart_llm_provider}", file=sys.stderr)
+        print(f"📋 LLM Model: {researcher.cfg.smart_llm_model}", file=sys.stderr)
+        print(f"🔍 === END INITIAL CONFIG ===\n", file=sys.stderr)
         
         # Try to use free search if available
         free_search_enabled = use_free_search_if_available(researcher)
