@@ -247,8 +247,8 @@ class GPTResearcher:
         Args:
             mcp_configs (list[dict]): List of MCP server configuration dictionaries.
         """
-        # Check if user explicitly set RETRIEVER environment variable
-        user_set_retriever = os.getenv("RETRIEVER") is not None
+        # Always use hardcoded retriever configuration (ignore environment variables)
+        user_set_retriever = False  # Always False since we're hardcoding
         
         if not user_set_retriever:
             # Only auto-add MCP if user hasn't explicitly set retrievers
