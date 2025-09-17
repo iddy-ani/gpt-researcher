@@ -1,0 +1,10 @@
+{
+  "servers": [
+    {
+      "name": "gpt-researcher",
+      "command": "C:\\Users\\ianimash\\source\\repos\\gpt-researcher\\dist\\gpt-researcher-mcp.exe",
+      "args": [],
+      "enabled": true
+    }
+  ]
+}

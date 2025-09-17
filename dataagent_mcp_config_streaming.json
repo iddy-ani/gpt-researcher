@@ -1,0 +1,10 @@
+{
+  "servers": [
+    {
+      "name": "gpt-researcher-streaming",
+      "command": "C:\\\\Users\\\\ianimash\\\\source\\\\repos\\\\gpt-researcher\\\\dist\\\\gpt-researcher-mcp-streaming.exe",
+      "args": [],
+      "enabled": true
+    }
+  ]
+}
