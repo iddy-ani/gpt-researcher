@@ -48,6 +48,22 @@ logs/
 *.log
 server_log.txt
 
+# Debug and test output files
+debug_*.py
+debug_*.txt
+debug_*_output_*.txt
+executable_research_report_*.txt
+research_report_*.txt
+
+# PyInstaller build artifacts
+build/
+*.spec.bak
+
+# Test outputs and temporary files
+test_output_*.txt
+temp_*.py
+quick_test_*.py
+
 #Cursor Rules
 .cursorrules
 CURSOR_RULES.md

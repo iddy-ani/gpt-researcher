@@ -746,8 +746,28 @@ class ResearchConductor:
                     retriever.search, max_results=self.researcher.cfg.max_search_results_per_query
                 )
 
-                # Collect new URLs from search results
-                search_urls = [url.get("href") for url in search_results if url.get("href")]
+                # Collect new URLs from search results with safety checks
+                search_urls = []
+                if search_results:
+                    for i, url in enumerate(search_results):
+                        try:
+                            if url is None:
+                                self.logger.warning(f"Search result {i} from {retriever_class.__name__} is None")
+                                continue
+                            if not isinstance(url, dict):
+                                self.logger.warning(f"Search result {i} from {retriever_class.__name__} is not a dict: {type(url)}")
+                                continue
+                            href = url.get("href")
+                            if href and isinstance(href, str):
+                                search_urls.append(href)
+                            elif href is None:
+                                self.logger.warning(f"Search result {i} from {retriever_class.__name__} has None href")
+                            else:
+                                self.logger.warning(f"Search result {i} from {retriever_class.__name__} has invalid href type: {type(href)}")
+                        except Exception as e:
+                            self.logger.error(f"Error processing search result {i} from {retriever_class.__name__}: {e}")
+                else:
+                    self.logger.warning(f"No search results returned from {retriever_class.__name__}")
                 new_search_urls.extend(search_urls)
             except Exception as e:
                 self.logger.error(f"Error searching with {retriever_class.__name__}: {e}")

@@ -48,21 +48,16 @@ _write_stream = None
 def send_progress_notification(message: str, progress: float = None):
     """Send a progress notification to the client"""
     global _write_stream
-    if _write_stream:
-        try:
-            notification = {
-                "jsonrpc": "2.0",
-                "method": "notifications/progress",
-                "params": {
-                    "message": message,
-                    "progress": progress,
-                    "timestamp": datetime.now().isoformat()
-                }
-            }
-            # Send notification (fire and forget)
-            asyncio.create_task(_write_stream.write(json.dumps(notification) + "\n"))
-        except Exception as e:
-            print(f"Failed to send progress notification: {e}", file=sys.stderr)
+    # For now, disable progress notifications in executable to prevent crashes
+    # Just log progress to stderr for debugging
+    try:
+        if progress is not None:
+            print(f"Progress: {message} ({progress:.1%})", file=sys.stderr)
+        else:
+            print(f"Progress: {message}", file=sys.stderr)
+    except Exception as e:
+        # Silently continue if even stderr fails
+        pass
 
 # Report types supported by GPT Researcher
 SUPPORTED_REPORT_TYPES = [

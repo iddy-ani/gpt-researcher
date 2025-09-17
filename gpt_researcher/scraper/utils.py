@@ -59,15 +59,20 @@ def parse_dimension(value: str) -> int:
 
 def extract_title(soup: BeautifulSoup) -> str:
     """Extract the title from the BeautifulSoup object"""
-    return soup.title.string if soup.title else ""
+    if soup is None or soup.title is None:
+        return ""
+    return soup.title.string if soup.title.string else ""
 
 def get_image_hash(image_url: str) -> str:
     """Calculate a simple hash based on the image filename and essential query parameters"""
     try:
+        if image_url is None:
+            return None
+            
         parsed_url = urlparse(image_url)
         
         # Extract the filename
-        filename = parsed_url.path.split('/')[-1]
+        filename = parsed_url.path.split('/')[-1] if parsed_url.path else ""
         
         # Extract essential query parameters (e.g., 'url' for CDN-served images)
         query_params = parse_qs(parsed_url.query)
@@ -76,8 +81,11 @@ def get_image_hash(image_url: str) -> str:
         # Combine filename and essential parameters
         image_identifier = filename + ''.join(essential_params)
         
-        # Calculate hash
-        return hashlib.md5(image_identifier.encode()).hexdigest()
+        # Calculate hash - ensure we have a string to encode
+        if image_identifier:
+            return hashlib.md5(image_identifier.encode()).hexdigest()
+        else:
+            return None
     except Exception as e:
         logging.error(f"Error calculating image hash for {image_url}: {e}")
         return None
@@ -118,7 +126,13 @@ def clean_soup(soup: BeautifulSoup) -> BeautifulSoup:
 
 def get_text_from_soup(soup: BeautifulSoup) -> str:
     """Get the relevant text from the soup with improved filtering"""
+    if soup is None:
+        return ""
+    
     text = soup.get_text(strip=True, separator="\n")
+    if text is None:
+        return ""
+    
     # Remove excess whitespace
     text = re.sub(r"\s{2,}", " ", text)
     return text

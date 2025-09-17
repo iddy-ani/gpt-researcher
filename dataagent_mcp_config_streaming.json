@@ -2,9 +2,10 @@
   "servers": [
     {
       "name": "gpt-researcher-streaming",
-      "command": "C:\\\\Users\\\\ianimash\\\\source\\\\repos\\\\gpt-researcher\\\\dist\\\\gpt-researcher-mcp-streaming.exe",
+      "command": "C:\\\\path\\\\to\\\\your\\\\gpt-researcher-mcp-streaming.exe",
       "args": [],
-      "enabled": true
+      "enabled": true,
+      "description": "GPT Researcher with Intel EGPT API integration and streaming support"
     }
   ]
 }

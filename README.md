@@ -164,6 +164,54 @@ async def mcp_research_example():
 
 > For comprehensive MCP documentation and advanced examples, visit the [MCP Integration Guide](https://docs.gptr.dev/docs/gpt-researcher/retrievers/mcp-configs).
 
+### 🎯 MCP Server (Standalone Executable)
+GPT Researcher can also function as a standalone MCP Server for integration with DataAgent or other MCP-compatible clients. The server provides research capabilities through the Model Context Protocol.
+
+#### Quick Start with Executable
+1. **Download the executable** from `dist/gpt-researcher-mcp-streaming.exe` (111.9 MB)
+2. **Set environment variables:**
+   ```bash
+   set EGPT_API_KEY=your_intel_api_key_here
+   set OPENAI_BASE_URL=https://expertgpt.apps1-ir-int.icloud.intel.com/v1
+   ```
+3. **Run the executable:** `gpt-researcher-mcp-streaming.exe`
+
+#### Configuration for DataAgent
+Create a configuration file at `%APPDATA%\DataAgent\dataagent_mcp_config.json`:
+```json
+{
+  "mcpServers": {
+    "gpt-researcher-streaming": {
+      "command": "C:\\path\\to\\gpt-researcher-mcp-streaming.exe",
+      "args": [],
+      "env": {},
+      "settings": {
+        "name": "GPT Researcher (Streaming)",
+        "description": "AI-powered research agent with Intel EGPT API"
+      }
+    }
+  }
+}
+```
+
+#### Building from Source
+To build your own executable:
+```bash
+python build_mcp_streaming.py
+```
+
+The MCP Server provides these research tools:
+- **quick_research** - Fast research on any topic (2-5 minutes)
+- **detailed_research** - Comprehensive research reports (5-10 minutes)  
+- **status** - Check server operational status
+
+**Features:**
+- ✅ Standalone executable (no Python required)
+- ✅ Real-time progress notifications
+- ✅ Intel EGPT API integration
+- ✅ Full MCP protocol compliance
+- ✅ Production-ready deployment
+
 ## ✨ Deep Research
 
 GPT Researcher now includes Deep Research - an advanced recursive research workflow that explores topics with agentic depth and breadth. This feature employs a tree-like exploration pattern, diving deeper into subtopics while maintaining a comprehensive view of the research subject.

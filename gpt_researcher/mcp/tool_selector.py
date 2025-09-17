@@ -86,15 +86,19 @@ class MCPToolSelector:
             except json.JSONDecodeError:
                 # Try to extract JSON from response
                 import re
-                json_match = re.search(r"\{.*\}", response, re.DOTALL)
-                if json_match:
-                    try:
-                        selection_result = json.loads(json_match.group(0))
-                    except json.JSONDecodeError:
-                        logger.warning("Could not parse extracted JSON, using fallback")
+                if response is not None:
+                    json_match = re.search(r"\{.*\}", response, re.DOTALL)
+                    if json_match:
+                        try:
+                            selection_result = json.loads(json_match.group(0))
+                        except json.JSONDecodeError:
+                            logger.warning("Could not parse extracted JSON, using fallback")
+                            return self._fallback_tool_selection(all_tools, max_tools)
+                    else:
+                        logger.warning("No JSON found in response, using fallback")
                         return self._fallback_tool_selection(all_tools, max_tools)
                 else:
-                    logger.warning("No JSON found in LLM response, using fallback")
+                    logger.warning("Response is None, using fallback")
                     return self._fallback_tool_selection(all_tools, max_tools)
             
             selected_tools = []
