@@ -134,7 +134,7 @@ async def comprehensive_test():
         }, 3)
         
         print("📨 Calling check-status tool...")
-        process.stdin.write(status_request)
+        process.stdin.write(status_request.encode('utf-8'))
         await process.stdin.drain()
         
         response_line = await process.stdout.readline()
@@ -181,7 +181,7 @@ async def comprehensive_test():
         }, 4)
         
         print("📨 Calling generate-subtopics tool...")
-        process.stdin.write(subtopics_request)
+        process.stdin.write(subtopics_request.encode('utf-8'))
         await process.stdin.drain()
         
         print("⏳ Waiting for subtopics generation (this may take a moment)...")
@@ -227,48 +227,113 @@ async def comprehensive_test():
         }, 5)
         
         print("📨 Calling quick-research tool...")
-        process.stdin.write(quick_research_request)
+        process.stdin.write(quick_research_request.encode('utf-8'))
         await process.stdin.drain()
         
         print("⏳ Starting quick research (this will take longer)...")
-        print("   Note: Actual research may take 30-60 seconds depending on sources")
+        print("   Note: Actual research may take 60-120 seconds depending on sources")
         
-        # Start timer for demonstration
+        # Start timer and collect progress notifications
         start_time = time.time()
+        progress_messages = []
+        source_stats = {"fetched": 0, "failed": 0, "total": 0}
         
-        # Read response with longer timeout for research
+        # Read responses and progress notifications with extended timeout
+        research_completed = False
+        final_research_text = ""
+        
         try:
-            response_line = await asyncio.wait_for(process.stdout.readline(), timeout=60.0)
-            elapsed_time = time.time() - start_time
-            
-            if response_line:
+            timeout_duration = 120.0  # Extended timeout for full research
+            while not research_completed:
                 try:
-                    response = json.loads(response_line)
-                    if 'result' in response:
-                        content = response['result'].get('content', [])
-                        if content and content[0].get('type') == 'text':
-                            research_text = content[0].get('text', '')
-                            print(f"✅ Quick research completed in {elapsed_time:.1f} seconds")
-                            print("   Research report preview:")
-                            lines = research_text.split('\n')[:20]
-                            for line in lines:
-                                if line.strip():
-                                    print(f"   {line}")
-                            if len(research_text.split('\n')) > 20:
-                                print("   ... (truncated - full report available)")
-                        else:
-                            print("❌ Invalid research response format")
-                    else:
-                        error_msg = response.get('error', {}).get('message', 'Unknown error')
-                        print(f"❌ Quick research failed: {error_msg}")
-                except json.JSONDecodeError as e:
-                    print(f"❌ Invalid JSON in research response: {e}")
-            else:
-                print("❌ No research response received")
-        except asyncio.TimeoutError:
-            elapsed_time = time.time() - start_time
-            print(f"⚠️ Quick research timed out after {elapsed_time:.1f} seconds")
-            print("   This is normal - actual research can take longer depending on network and sources")
+                    response_line = await asyncio.wait_for(process.stdout.readline(), timeout=timeout_duration)
+                    if not response_line:
+                        break
+                    
+                    try:
+                        response = json.loads(response_line)
+                        
+                        # Check if this is a progress notification
+                        if response.get('method') == 'notifications/progress':
+                            params = response.get('params', {})
+                            message = params.get('message', '')
+                            progress = params.get('progress', 0)
+                            progress_messages.append(f"[{progress}%] {message}")
+                            
+                            # Parse source statistics from progress messages
+                            if "Fetching information from" in message:
+                                source_stats["total"] += 1
+                            elif "Successfully retrieved" in message:
+                                source_stats["fetched"] += 1
+                            elif "Failed to retrieve" in message or "Error" in message:
+                                source_stats["failed"] += 1
+                            
+                            print(f"   📊 [{progress}%] {message}")
+                        
+                        # Check if this is the final research result
+                        elif 'result' in response and response.get('id') == 5:
+                            content = response['result'].get('content', [])
+                            if content and content[0].get('type') == 'text':
+                                final_research_text = content[0].get('text', '')
+                                research_completed = True
+                                elapsed_time = time.time() - start_time
+                                print(f"\n✅ Quick research completed in {elapsed_time:.1f} seconds")
+                            
+                        # Check for errors
+                        elif 'error' in response:
+                            error_msg = response.get('error', {}).get('message', 'Unknown error')
+                            print(f"❌ Quick research failed: {error_msg}")
+                            break
+                            
+                    except json.JSONDecodeError:
+                        # Skip non-JSON lines
+                        continue
+                        
+                except asyncio.TimeoutError:
+                    elapsed_time = time.time() - start_time
+                    print(f"⚠️ Research timed out after {elapsed_time:.1f} seconds")
+                    break
+                    
+        except Exception as e:
+            print(f"❌ Error during research: {e}")
+        
+        # Analyze and display results
+        if research_completed and final_research_text:
+            print("\n📈 RESEARCH ANALYSIS:")
+            print(f"   📊 Sources attempted: {source_stats['total']}")
+            print(f"   ✅ Sources fetched successfully: {source_stats['fetched']}")
+            print(f"   ❌ Sources failed: {source_stats['failed']}")
+            if source_stats['total'] > 0:
+                success_rate = (source_stats['fetched'] / source_stats['total']) * 100
+                print(f"   📈 Success rate: {success_rate:.1f}%")
+            
+            # Analyze research quality
+            word_count = len(final_research_text.split())
+            char_count = len(final_research_text)
+            sections = final_research_text.count('#')
+            
+            print(f"\n📄 RESEARCH QUALITY METRICS:")
+            print(f"   📝 Word count: {word_count}")
+            print(f"   📏 Character count: {char_count}")
+            print(f"   📋 Sections found: {sections}")
+            print(f"   📨 Progress notifications: {len(progress_messages)}")
+            
+            # Show research preview
+            print(f"\n📋 RESEARCH REPORT PREVIEW:")
+            lines = final_research_text.split('\n')[:15]
+            for line in lines:
+                if line.strip():
+                    print(f"   {line}")
+            if len(final_research_text.split('\n')) > 15:
+                print("   ... (truncated - see full metrics above)")
+                
+        else:
+            print("\n❌ Research did not complete successfully")
+            print(f"   📊 Progress messages received: {len(progress_messages)}")
+            if progress_messages:
+                print("   Last few progress updates:")
+                for msg in progress_messages[-3:]:
+                    print(f"      {msg}")
         
         # Test 6: Check for Progress Notifications (if any were sent)
         print("\n" + "="*50)
@@ -312,10 +377,21 @@ async def comprehensive_test():
         print("✅ Tool listing: PASSED")
         print("✅ System status check: PASSED")
         print("✅ Subtopics generation: TESTED")
-        print("✅ Quick research functionality: TESTED")
-        print(f"📊 Progress notifications: {notifications_received} received")
+        
+        if research_completed:
+            print("✅ Quick research functionality: COMPLETED")
+            if source_stats['total'] > 0:
+                success_rate = (source_stats['fetched'] / source_stats['total']) * 100
+                print(f"📊 Source fetch success rate: {success_rate:.1f}% ({source_stats['fetched']}/{source_stats['total']})")
+            print(f"📝 Research quality: {len(final_research_text.split())} words, {len(final_research_text)} characters")
+        else:
+            print("⚠️ Quick research functionality: TIMED OUT (but server responding)")
+        
+        print(f"📨 Progress notifications: {len(progress_messages)} received")
         
         print("\n🎉 All core MCP server functionality is working correctly!")
+        if research_completed:
+            print("🔬 Full research pipeline validated with detailed metrics!")
         print("📝 Note: Network-dependent operations (research, subtopics) may take time")
         print("📝 The server is ready for production use with Intel's MCP framework")
         

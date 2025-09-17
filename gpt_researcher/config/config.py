@@ -44,13 +44,13 @@ class Config:
                 value = self.convert_env_value(key, env_value, BaseConfig.__annotations__[key])
             setattr(self, key.lower(), value)
 
-        # Handle RETRIEVER with hardcoded value (ignore environment variable)
-        retriever_value = config.get("RETRIEVER", "duckduckgo")
+        # Handle RETRIEVER with custom as default (for free search)
+        retriever_value = config.get("RETRIEVER", "custom")
         try:
             self.retrievers = self.parse_retrievers(retriever_value)
         except ValueError as e:
-            print(f"Warning: {str(e)}. Defaulting to 'duckduckgo' retriever.")
-            self.retrievers = ["duckduckgo"]
+            print(f"Warning: {str(e)}. Defaulting to 'custom' retriever (free search).")
+            self.retrievers = ["custom"]
 
     def _set_embedding_attributes(self) -> None:
         self.embedding_provider, self.embedding_model = self.parse_embedding(

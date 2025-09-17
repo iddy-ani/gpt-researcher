@@ -1,7 +1,7 @@
 from .base import BaseConfig
 
 DEFAULT_CONFIG: BaseConfig = {
-    "RETRIEVER": "duckduckgo",
+    "RETRIEVER": "custom",
     "EMBEDDING": "azure_openai:text-embedding-3-large",
     "SIMILARITY_THRESHOLD": 0.42,
     "FAST_LLM": "openai:gpt-5-mini",

@@ -23,6 +23,7 @@ class Duckduckgo:
         # TODO: Add support for query domains
         try:
             search_response = self.ddg.text(self.query, region='wt-wt', max_results=max_results)
+            print(f'Search successful, here is the head of the response: {search_response[100]}')
         except Exception as e:
             print(f"Error: {e}. Failed fetching sources. Resulting in empty response.")
             search_response = []
