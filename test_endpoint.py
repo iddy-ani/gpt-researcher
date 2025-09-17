@@ -11,7 +11,7 @@ async def test_endpoint():
     """Test that the LLM is using the correct endpoint"""
     print("Testing GPT Researcher with Intel's internal API endpoint...")
     print(f"OPENAI_BASE_URL: {os.getenv('OPENAI_BASE_URL', 'Not set')}")
-    print(f"OPENAI_API_KEY: {'Set' if os.getenv('OPENAI_API_KEY') else 'Not set'}")
+    print(f"EGPT_API_KEY: {'Set' if os.getenv('EGPT_API_KEY') else 'Not set'}")
     
     # Initialize config
     cfg = Config()

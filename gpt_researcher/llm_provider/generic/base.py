@@ -105,6 +105,10 @@ class GenericLLMProvider:
                 if 'http_async_client' not in kwargs:
                     http_client = httpx.AsyncClient(verify=False)
                     kwargs['http_async_client'] = http_client
+            
+            # Use EGPT_API_KEY instead of OPENAI_API_KEY for Intel's internal API
+            if 'openai_api_key' not in kwargs:
+                kwargs['openai_api_key'] = os.environ.get('EGPT_API_KEY', os.environ.get('OPENAI_API_KEY'))
 
             llm = ChatOpenAI(**kwargs)
         elif provider == "anthropic":

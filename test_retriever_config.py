@@ -43,11 +43,11 @@ async def test_retriever_config():
     openai_base_url = os.getenv('OPENAI_BASE_URL')
     print(f"OPENAI_BASE_URL: {openai_base_url}")
     
-    openai_api_key = os.getenv('OPENAI_API_KEY')
-    if openai_api_key:
-        print(f"OPENAI_API_KEY: Set (Key: {openai_api_key[:10]}...)")
+    egpt_api_key = os.getenv('EGPT_API_KEY')
+    if egpt_api_key:
+        print(f"EGPT_API_KEY: Set (Key: {egpt_api_key[:10]}...)")
     else:
-        print("OPENAI_API_KEY: Not set")
+        print("EGPT_API_KEY: Not set")
 
 if __name__ == "__main__":
     asyncio.run(test_retriever_config())

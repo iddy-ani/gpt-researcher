@@ -44,7 +44,7 @@ class Memory:
 
                 _embeddings = OpenAIEmbeddings(
                     model=model,
-                    openai_api_key=os.getenv("OPENAI_API_KEY", "custom"),
+                    openai_api_key=os.getenv("EGPT_API_KEY", os.getenv("OPENAI_API_KEY", "custom")),
                     openai_api_base=base_url,
                     check_embedding_ctx_length=False,
                     **embedding_kwargs,
@@ -62,6 +62,10 @@ class Memory:
                     http_client = httpx.Client(verify=False)
                     embedding_kwargs['http_client'] = http_client
                     embedding_kwargs['openai_api_base'] = base_url
+                
+                # Use EGPT_API_KEY instead of OPENAI_API_KEY for Intel's internal API
+                if 'openai_api_key' not in embedding_kwargs:
+                    embedding_kwargs['openai_api_key'] = os.environ.get('EGPT_API_KEY', os.environ.get('OPENAI_API_KEY'))
 
                 _embeddings = OpenAIEmbeddings(model=model, **embedding_kwargs)
             case "azure_openai":

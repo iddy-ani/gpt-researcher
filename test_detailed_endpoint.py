@@ -12,10 +12,10 @@ async def test_direct_api_call():
     """Test direct API call to Intel endpoint"""
     print("=== Direct API Test ===")
     base_url = os.getenv('OPENAI_BASE_URL')
-    api_key = os.getenv('OPENAI_API_KEY')
+    api_key = os.getenv('EGPT_API_KEY')
     
     if not base_url or not api_key:
-        print("❌ Missing OPENAI_BASE_URL or OPENAI_API_KEY")
+        print("❌ Missing OPENAI_BASE_URL or EGPT_API_KEY")
         return
     
     url = f"{base_url}/chat/completions"

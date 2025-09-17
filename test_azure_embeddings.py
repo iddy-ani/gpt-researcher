@@ -39,17 +39,17 @@ def test_hardcoded_azure_embeddings():
         
         # Check if it's an API key issue
         if "authentication" in str(e).lower() or "unauthorized" in str(e).lower():
-            print("💡 This might be an API key issue. Make sure OPENAI_API_KEY is set with your Azure key.")
+            print("💡 This might be an API key issue. Make sure EGPT_API_KEY is set with your Azure key.")
         
         return False
 
 if __name__ == "__main__":
     # Check environment
-    api_key = os.getenv('OPENAI_API_KEY')
+    api_key = os.getenv('EGPT_API_KEY')
     if api_key:
-        print(f"✅ OPENAI_API_KEY is set: {api_key[:10]}...")
+        print(f"✅ EGPT_API_KEY is set: {api_key[:10]}...")
     else:
-        print("❌ OPENAI_API_KEY not set")
+        print("❌ EGPT_API_KEY not set")
     
     # Run test
     success = test_hardcoded_azure_embeddings()

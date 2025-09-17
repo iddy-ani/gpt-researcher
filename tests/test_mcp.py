@@ -18,7 +18,7 @@ Prerequisites:
    - GitHub: npm install -g @modelcontextprotocol/server-github
 3. Set up environment variables:
    - GITHUB_PERSONAL_ACCESS_TOKEN: Your GitHub Personal Access Token
-   - OPENAI_API_KEY: Your OpenAI API key
+   - EGPT_API_KEY: Your Intel API key
    - TAVILY_API_KEY: Your Tavily API key
 """
 
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 # Get API keys from environment variables
 GITHUB_TOKEN = os.environ.get("GITHUB_PERSONAL_ACCESS_TOKEN")
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+EGPT_API_KEY = os.environ.get("EGPT_API_KEY")
 TAVILY_API_KEY = os.environ.get("TAVILY_API_KEY")
 
 # Test configuration using environment variables
@@ -67,7 +67,7 @@ def setup_environment():
     """Validate required environment variables."""
     required_vars = {
         "GITHUB_PERSONAL_ACCESS_TOKEN": GITHUB_TOKEN,
-        "OPENAI_API_KEY": OPENAI_API_KEY,
+        "EGPT_API_KEY": EGPT_API_KEY,
         "TAVILY_API_KEY": TAVILY_API_KEY
     }
     
@@ -83,7 +83,7 @@ def setup_environment():
             print(f"   • {var}")
         print("\nPlease set these environment variables before running the test:")
         print("   export GITHUB_PERSONAL_ACCESS_TOKEN='your_github_token'")
-        print("   export OPENAI_API_KEY='your_openai_key'")
+        print("   export EGPT_API_KEY='your_intel_api_key'")
         print("   export TAVILY_API_KEY='your_tavily_key'")
         return False
     
