@@ -220,24 +220,15 @@ async def generate_subtopics(arguments: dict) -> list[dict]:
         
         send_progress_notification("🔍 Analyzing topic structure...", 0.7)
         
-        # Generate subtopics (simplified approach)
-        subtopics_prompt = f"""Generate {max_subtopics} specific subtopics for research on: {query}
-
-        Please provide subtopics that are:
-        - Specific and focused
-        - Researchable with available sources
-        - Non-overlapping
-        - Comprehensive coverage of the main topic
+        # Use GPT Researcher's built-in subtopic generation
+        from gpt_researcher.utils.llm import construct_subtopics
         
-        Format as a numbered list."""
-        
-        # Use the LLM to generate subtopics
-        from gpt_researcher.llm_provider import GenericLLMProvider
-        llm = GenericLLMProvider(researcher.cfg.smart_llm_model, researcher.cfg.smart_llm_provider, researcher.cfg.openai_api_base)
-        
-        subtopics_response = await llm.get_chat_response(
-            messages=[{"role": "user", "content": subtopics_prompt}],
-            stream=False
+        subtopics_response = await construct_subtopics(
+            task=query,
+            data="",  # No prior context
+            config=researcher.cfg,
+            subtopics=max_subtopics,
+            prompt_family=None,
         )
         
         send_progress_notification("✅ Subtopics generated successfully!", 1.0)
@@ -282,7 +273,7 @@ async def check_system_status(arguments: dict) -> list[dict]:
             "system_status": "✅ Operational",
             "llm_provider": getattr(config, 'smart_llm_provider', 'Unknown'),
             "llm_model": getattr(config, 'smart_llm_model', 'Unknown'),
-            "api_base": getattr(config, 'openai_api_base', 'Unknown'),
+            "api_base": getattr(config, 'openai_api_base', getattr(config, 'smart_llm_api_base', 'Unknown')),
             "retrievers": getattr(config, 'retrievers', ['Unknown']),
             "max_search_results": getattr(config, 'max_search_results_per_query', 'Unknown'),
             "max_iterations": getattr(config, 'max_iterations', 'Unknown'),
