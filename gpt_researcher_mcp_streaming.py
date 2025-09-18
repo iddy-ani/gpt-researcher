@@ -615,10 +615,22 @@ async def conduct_research_task(arguments: dict) -> list[dict]:
 *Research conducted with {sources_found} sources and {context_length} characters of context*
 """
         
-        return [{
+        # Debug: Log that we're about to return the response
+        print(f"🎯 About to return response with {len(response_text)} characters", file=sys.stderr, flush=True)
+        update_progress_file("Preparing to return final response", 1.0, {
+            "response_length": len(response_text),
+            "response_preview": response_text[:200] + "..." if len(response_text) > 200 else response_text
+        })
+        
+        final_response = [{
             "type": "text",
             "text": response_text
         }]
+        
+        # Debug: Log the response structure
+        print(f"🎯 Final response structure: {len(final_response)} items, first item type: {final_response[0]['type']}", file=sys.stderr, flush=True)
+        
+        return final_response
         
     except Exception as e:
         error_msg = f"Research failed: {str(e)}"
@@ -960,10 +972,22 @@ Report generation failed with error: {str(report_error)}
 *Quick research by ExpertGPT Researcher*
 """
         
-        return [{
+        # Debug: Log that we're about to return the response
+        print(f"🎯 About to return quick research response with {len(response_text)} characters", file=sys.stderr, flush=True)
+        update_progress_file("Preparing to return quick research response", 1.0, {
+            "response_length": len(response_text),
+            "response_preview": response_text[:200] + "..." if len(response_text) > 200 else response_text
+        })
+        
+        final_response = [{
             "type": "text",
             "text": response_text
         }]
+        
+        # Debug: Log the response structure
+        print(f"🎯 Quick research final response: {len(final_response)} items, first item type: {final_response[0]['type']}", file=sys.stderr, flush=True)
+        
+        return final_response
         
     except Exception as e:
         error_msg = f"Quick research failed: {str(e)}"
@@ -1180,16 +1204,37 @@ async def handle_list_tools() -> list[Tool]:
 @server.call_tool()
 async def handle_call_tool(name: str, arguments: dict) -> list[dict]:
     """Handle tool calls."""
-    if name == "conduct-research":
-        return await conduct_research_task(arguments)
-    elif name == "quick-research":
-        return await quick_research(arguments)
-    elif name == "generate-subtopics":
-        return await generate_subtopics(arguments)
-    elif name == "check-status":
-        return await check_system_status(arguments)
-    else:
-        raise ValueError(f"Unknown tool: {name}")
+    print(f"🛠️ MCP Server: Received tool call '{name}' with args: {arguments}", file=sys.stderr, flush=True)
+    
+    try:
+        result = None
+        if name == "conduct-research":
+            result = await conduct_research_task(arguments)
+        elif name == "quick-research":
+            result = await quick_research(arguments)
+        elif name == "generate-subtopics":
+            result = await generate_subtopics(arguments)
+        elif name == "check-status":
+            result = await check_system_status(arguments)
+        else:
+            raise ValueError(f"Unknown tool: {name}")
+        
+        # Debug: Log the result before returning
+        if result:
+            print(f"🛠️ MCP Server: Tool '{name}' completed successfully, returning {len(result)} items", file=sys.stderr, flush=True)
+            if result and len(result) > 0 and 'text' in result[0]:
+                text_length = len(result[0]['text'])
+                print(f"🛠️ MCP Server: First result item has {text_length} characters", file=sys.stderr, flush=True)
+        else:
+            print(f"🛠️ MCP Server: Tool '{name}' returned empty/null result", file=sys.stderr, flush=True)
+        
+        return result
+        
+    except Exception as e:
+        print(f"❌ MCP Server: Tool '{name}' failed with error: {e}", file=sys.stderr, flush=True)
+        import traceback
+        print(f"❌ MCP Server: Full traceback: {traceback.format_exc()}", file=sys.stderr, flush=True)
+        raise
 
 async def main():
     """Main function to run the MCP server"""
