@@ -540,8 +540,47 @@ async def conduct_research_task(arguments: dict) -> list[dict]:
             "sources_found": sources_found
         })
         
-        # Generate report
-        report = await researcher.write_report()
+        # Generate report with timeout and error handling
+        try:
+            print(f"📝 Calling researcher.write_report()...", file=sys.stderr, flush=True)
+            report = await asyncio.wait_for(
+                researcher.write_report(), 
+                timeout=180  # 3 minutes timeout for comprehensive report generation
+            )
+            print(f"📝 Report generation completed successfully at: {datetime.now().isoformat()}", file=sys.stderr, flush=True)
+            
+        except asyncio.TimeoutError:
+            error_msg = "Report generation timed out after 3 minutes"
+            print(f"❌ {error_msg}", file=sys.stderr, flush=True)
+            update_progress_file(f"TIMEOUT: {error_msg}", 0.0, {
+                "error_type": "ReportTimeoutError",
+                "timeout_duration": 180,
+                "context_available": context_length
+            })
+            
+            return [{
+                "type": "text",
+                "text": f"Error: {error_msg}\n\nThe report generation took too long despite having {context_length} characters of research context. This may be due to LLM API issues or complex content processing."
+            }]
+            
+        except Exception as report_error:
+            error_msg = f"Report generation failed: {str(report_error)}"
+            print(f"❌ {error_msg}", file=sys.stderr, flush=True)
+            import traceback
+            report_traceback = traceback.format_exc()
+            print(f"Report generation traceback: {report_traceback}", file=sys.stderr, flush=True)
+            
+            update_progress_file(f"ERROR: {error_msg}", 0.0, {
+                "error_type": type(report_error).__name__,
+                "error_details": str(report_error),
+                "context_available": context_length,
+                "traceback_preview": report_traceback[:500]
+            })
+            
+            return [{
+                "type": "text",
+                "text": f"Error: {error_msg}\n\nResearch was successful (found {context_length} chars of context), but report generation failed. Check logs for details."
+            }]
         
         print(f"📝 Report generation completed at: {datetime.now().isoformat()}", file=sys.stderr, flush=True)
         update_progress_file("Report generation completed", 0.95, {
@@ -773,10 +812,127 @@ async def quick_research(arguments: dict) -> list[dict]:
                 "text": error_response
             }]
         
-        send_progress_notification("�📄 Generating quick report...", 0.8)
+        send_progress_notification("📄 Generating quick report...", 0.8)
         
-        # Generate report
-        report = await researcher.write_report()
+        # Add detailed logging for report generation
+        print(f"📝 Starting report generation at: {datetime.now().isoformat()}", file=sys.stderr, flush=True)
+        update_progress_file("Quick research: report generation started", 0.8, {
+            "context_chars": context_length,
+            "sources_found": len(research_result) if research_result else 0
+        })
+        
+        # Generate report with timeout and error handling
+        try:
+            print(f"📝 Calling researcher.write_report()...", file=sys.stderr, flush=True)
+            
+            # Add a small delay to ensure the log is written
+            await asyncio.sleep(0.1)
+            
+            # Try calling the report generation with more defensive handling
+            try:
+                # First check if the method exists and is callable
+                if not hasattr(researcher, 'write_report'):
+                    raise AttributeError("researcher object has no write_report method")
+                
+                if not callable(researcher.write_report):
+                    raise AttributeError("researcher.write_report is not callable")
+                
+                print(f"📝 write_report method confirmed, starting generation...", file=sys.stderr, flush=True)
+                
+                # Call the report generation with timeout
+                report = await asyncio.wait_for(
+                    researcher.write_report(), 
+                    timeout=120  # 2 minutes timeout for report generation
+                )
+                
+                print(f"📝 Report generation completed successfully at: {datetime.now().isoformat()}", file=sys.stderr, flush=True)
+                print(f"📝 Report length: {len(report) if report else 0} characters", file=sys.stderr, flush=True)
+                
+            except AttributeError as attr_error:
+                error_msg = f"Researcher method error: {str(attr_error)}"
+                print(f"❌ {error_msg}", file=sys.stderr, flush=True)
+                
+                # Try alternative report generation if available
+                try:
+                    print(f"🔄 Attempting alternative report generation...", file=sys.stderr, flush=True)
+                    
+                    # Check for alternative methods
+                    if hasattr(researcher, 'generate_report'):
+                        report = await researcher.generate_report()
+                    elif hasattr(researcher, 'create_report'):
+                        report = await researcher.create_report()
+                    else:
+                        # Manual report creation from context
+                        context = researcher.get_research_context() if hasattr(researcher, 'get_research_context') else ""
+                        report = f"# Research Report: {query}\n\n**Generated using fallback method**\n\n{context[:5000]}..."
+                        
+                    print(f"🔄 Alternative report generation successful", file=sys.stderr, flush=True)
+                    
+                except Exception as alt_error:
+                    report = f"# Research Report: {query}\n\n**Error during report generation**\n\nResearch was successful but report generation failed.\nContext gathered: {context_length} characters from {len(researcher.visited_urls) if hasattr(researcher, 'visited_urls') else 'unknown'} URLs.\n\nError: {str(attr_error)}"
+                    
+            except Exception as inner_error:
+                # Re-raise to be caught by outer exception handler
+                raise inner_error
+                
+        except asyncio.TimeoutError:
+            error_msg = "Report generation timed out after 2 minutes"
+            print(f"❌ {error_msg}", file=sys.stderr, flush=True)
+            update_progress_file(f"TIMEOUT: {error_msg}", 0.0, {
+                "error_type": "ReportTimeoutError",
+                "timeout_duration": 120,
+                "context_available": context_length
+            })
+            
+            return [{
+                "type": "text",
+                "text": f"Error: {error_msg}\n\nThe report generation took too long despite having {context_length} characters of research context. This may be due to LLM API issues or complex content processing."
+            }]
+            
+        except Exception as report_error:
+            error_msg = f"Report generation failed: {str(report_error)}"
+            print(f"❌ {error_msg}", file=sys.stderr, flush=True)
+            import traceback
+            report_traceback = traceback.format_exc()
+            print(f"Report generation traceback: {report_traceback}", file=sys.stderr, flush=True)
+            
+            update_progress_file(f"ERROR: {error_msg}", 0.0, {
+                "error_type": type(report_error).__name__,
+                "error_details": str(report_error),
+                "context_available": context_length,
+                "traceback_preview": report_traceback[:500]
+            })
+            
+            # Create a fallback report with the research context
+            try:
+                context = researcher.get_research_context() if hasattr(researcher, 'get_research_context') else ""
+                fallback_report = f"""# Research Report: {query}
+
+**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**Status:** Fallback report due to generation error
+**Context Length:** {context_length} characters
+**URLs Visited:** {len(researcher.visited_urls) if hasattr(researcher, 'visited_urls') else 'Unknown'}
+
+## Error Information
+Report generation failed with error: {str(report_error)}
+
+## Research Context
+{context[:3000]}{'...' if len(context) > 3000 else ''}
+
+---
+*Fallback report generated after successful research but failed report generation*
+"""
+                
+                return [{
+                    "type": "text",
+                    "text": fallback_report
+                }]
+                
+            except Exception as fallback_error:
+                return [{
+                    "type": "text",
+                    "text": f"Error: {error_msg}\n\nResearch was successful (found {context_length} chars of context), but report generation failed. Fallback report creation also failed: {str(fallback_error)}"
+                }]
         
         send_progress_notification("✅ Quick research completed!", 1.0, {
             "sources_found": len(research_result) if research_result else 0,

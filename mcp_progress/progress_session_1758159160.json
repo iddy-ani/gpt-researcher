@@ -1,0 +1,102 @@
+{
+  "session_id": "session_1758159160",
+  "started_at": "2025-09-18T02:32:40.572546",
+  "status": "initialized",
+  "mode": "executable",
+  "progress_log": [
+    {
+      "timestamp": "2025-09-18T02:32:40.611743",
+      "message": "Checking system configuration",
+      "progress": 0.08
+    },
+    {
+      "timestamp": "2025-09-18T02:32:45.595317",
+      "message": "\ud83d\udd0d Starting research on: artificial intelligence advances and trends 2025",
+      "progress": 0.1
+    },
+    {
+      "timestamp": "2025-09-18T02:32:46.243081",
+      "message": "Debug: Initial researcher configuration",
+      "progress": 0.12
+    },
+    {
+      "timestamp": "2025-09-18T02:32:46.274865",
+      "message": "\ud83c\udd93 Using FREE web search (no API keys needed)",
+      "progress": 0.15
+    },
+    {
+      "timestamp": "2025-09-18T02:32:46.275858",
+      "message": "Logging research configuration",
+      "progress": 0.18
+    },
+    {
+      "timestamp": "2025-09-18T02:32:46.285112",
+      "message": "\u2699\ufe0f Configuring research parameters...",
+      "progress": 0.2
+    },
+    {
+      "timestamp": "2025-09-18T02:32:46.286115",
+      "message": "\ud83c\udf10 Conducting web research...",
+      "progress": 0.3
+    },
+    {
+      "timestamp": "2025-09-18T02:32:46.287120",
+      "message": "Web research phase started",
+      "progress": 0.35
+    },
+    {
+      "timestamp": "2025-09-18T02:33:01.304916",
+      "message": "Web search in progress... (step 1/20)",
+      "progress": 0.35
+    },
+    {
+      "timestamp": "2025-09-18T02:33:06.008229",
+      "message": "Web research phase completed",
+      "progress": 0.6
+    },
+    {
+      "timestamp": "2025-09-18T02:33:06.008914",
+      "message": "Research phase completed - analyzing results",
+      "progress": 0.65,
+      "sources_found": 20900,
+      "context_length": 20900,
+      "urls_visited": 7
+    },
+    {
+      "timestamp": "2025-09-18T02:33:06.010217",
+      "message": "\u2705 Found 20900 sources, 20900 chars context",
+      "progress": 0.6
+    },
+    {
+      "timestamp": "2025-09-18T02:33:06.011238",
+      "message": "\ud83d\udcdd Analyzing findings and generating report...",
+      "progress": 0.7
+    },
+    {
+      "timestamp": "2025-09-18T02:33:06.012235",
+      "message": "Report generation started",
+      "progress": 0.75,
+      "context_chars": 20900,
+      "sources_found": 20900
+    },
+    {
+      "timestamp": "2025-09-18T02:34:29.076219",
+      "message": "Report generation completed",
+      "progress": 0.95,
+      "report_length": 17182
+    },
+    {
+      "timestamp": "2025-09-18T02:34:29.078625",
+      "message": "\u2705 Research completed successfully!",
+      "progress": 1.0,
+      "sources_found": 20900,
+      "urls_visited": 7,
+      "context_length": 20900,
+      "report_type": "research_report",
+      "query": "artificial intelligence advances and trends 2025"
+    }
+  ],
+  "current_operation": "\u2705 Research completed successfully!",
+  "progress_percent": 1.0,
+  "last_updated": "2025-09-18T02:34:29.078625"
+}
