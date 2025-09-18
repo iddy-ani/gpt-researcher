@@ -10,10 +10,69 @@ import asyncio
 import json
 import os
 import sys
+import time
 from datetime import datetime
+from pathlib import Path
 
 # FORCE FREE SEARCH - Set environment before any imports
 os.environ['RETRIEVER'] = 'custom'  # Use custom retriever with free search
+
+# FIX TIKTOKEN ENCODING ERROR
+try:
+    import tiktoken
+    # Force register the cl100k_base encoding if missing
+    try:
+        tiktoken.get_encoding('cl100k_base')
+        print("✅ tiktoken cl100k_base encoding available", file=sys.stderr)
+    except ValueError:
+        print("🔧 tiktoken cl100k_base encoding not found, registering manually...", file=sys.stderr)
+        # Try to register the encoding manually
+        try:
+            # Method 1: Try importing tiktoken extensions
+            import tiktoken_ext.openai_public
+            tiktoken.get_encoding('cl100k_base')  # Should work now
+            print("✅ tiktoken cl100k_base encoding registered successfully", file=sys.stderr)
+        except Exception as reg_error:
+            try:
+                # Method 2: Direct registration approach
+                from tiktoken import Encoding
+                import tiktoken.load
+                
+                # Try to load the encoding directly
+                enc = tiktoken.load.load_tiktoken_bpe("https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken")
+                special_tokens = {
+                    "<|endoftext|>": 100257,
+                    "<|fim_prefix|>": 100258,
+                    "<|fim_middle|>": 100259,
+                    "<|fim_suffix|>": 100260,
+                    "<|startoftext|>": 100261
+                }
+                
+                cl100k_base = Encoding(
+                    name="cl100k_base",
+                    pat_str=r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""",
+                    mergeable_ranks=enc,
+                    special_tokens=special_tokens
+                )
+                
+                # Register the encoding
+                tiktoken.registry.ENCODINGS["cl100k_base"] = cl100k_base
+                tiktoken.get_encoding('cl100k_base')  # Test it
+                print("✅ tiktoken cl100k_base encoding manually registered", file=sys.stderr)
+                
+            except Exception as manual_error:
+                print(f"⚠️ Could not register cl100k_base encoding: {manual_error}", file=sys.stderr)
+                # Fallback: Patch the encoding function to use gpt2 instead
+                original_get_encoding = tiktoken.get_encoding
+                def patched_get_encoding(name):
+                    if name == 'cl100k_base':
+                        print("🔄 Using gpt2 encoding as fallback for cl100k_base", file=sys.stderr)
+                        return original_get_encoding('gpt2')
+                    return original_get_encoding(name)
+                tiktoken.get_encoding = patched_get_encoding
+                print("🔄 Patched tiktoken to use gpt2 as fallback", file=sys.stderr)
+except ImportError:
+    print("⚠️ tiktoken not available, embeddings may not work optimally", file=sys.stderr)
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
@@ -55,6 +114,7 @@ try:
     os.environ['OPENAI_BASE_URL'] = 'https://expertgpt.apps1-ir-int.icloud.intel.com/v1'
     os.environ['OPENAI_API_KEY'] = os.environ.get('EGPT_API_KEY', '')
     print("✅ ExpertGPT LLM endpoint configured", file=sys.stderr)
+    print("� Embeddings enabled for context compression", file=sys.stderr)
     
 except ImportError:
     FREE_SEARCH_AVAILABLE = False
@@ -66,6 +126,8 @@ server = Server("gpt-researcher")
 # Global reference to write stream for notifications
 _write_stream = None
 _is_executable_mode = False
+_progress_file = None
+_session_id = None
 
 # Free search integration
 def debug_llm_configuration(researcher):
@@ -137,6 +199,88 @@ def detect_executable_mode():
     _is_executable_mode = getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
     return _is_executable_mode
 
+def init_progress_tracking():
+    """Initialize progress tracking for executable mode"""
+    global _progress_file, _session_id
+    if _is_executable_mode:
+        try:
+            # Create a unique session ID and progress file
+            _session_id = f"session_{int(time.time())}"
+            temp_dir = Path.cwd() / "mcp_progress"
+            temp_dir.mkdir(exist_ok=True)
+            _progress_file = temp_dir / f"progress_{_session_id}.json"
+            
+            # Initialize progress file
+            progress_data = {
+                "session_id": _session_id,
+                "started_at": datetime.now().isoformat(),
+                "status": "initialized",
+                "mode": "executable",
+                "progress_log": [],
+                "current_operation": "Starting MCP server...",
+                "progress_percent": 0.0
+            }
+            
+            with open(_progress_file, 'w') as f:
+                json.dump(progress_data, f, indent=2)
+                
+            print(f"📊 Progress tracking initialized: {_progress_file}", file=sys.stderr)
+            
+        except Exception as e:
+            print(f"⚠️ Failed to initialize progress tracking: {e}", file=sys.stderr)
+            _progress_file = None
+
+def update_progress_file(message: str, progress: float = None, operation_data: dict = None):
+    """Update the progress file for executable mode"""
+    global _progress_file, _session_id
+    
+    if not _progress_file or not _is_executable_mode:
+        return
+        
+    try:
+        # Read current progress data
+        progress_data = {}
+        if _progress_file.exists():
+            with open(_progress_file, 'r') as f:
+                progress_data = json.load(f)
+        
+        # Update progress data
+        timestamp = datetime.now().isoformat()
+        progress_entry = {
+            "timestamp": timestamp,
+            "message": message,
+            "progress": progress if progress is not None else progress_data.get("progress_percent", 0.0)
+        }
+        
+        if operation_data:
+            progress_entry.update(operation_data)
+        
+        # Add to progress log
+        if "progress_log" not in progress_data:
+            progress_data["progress_log"] = []
+        progress_data["progress_log"].append(progress_entry)
+        
+        # Update current status
+        progress_data["last_updated"] = timestamp
+        progress_data["current_operation"] = message
+        if progress is not None:
+            progress_data["progress_percent"] = progress
+        
+        # Keep only last 50 progress entries to prevent file bloat
+        if len(progress_data["progress_log"]) > 50:
+            progress_data["progress_log"] = progress_data["progress_log"][-50:]
+        
+        # Write updated progress data
+        with open(_progress_file, 'w') as f:
+            json.dump(progress_data, f, indent=2)
+            
+        # Also force flush stderr with timestamp for immediate feedback
+        print(f"[{timestamp}] {message}", file=sys.stderr, flush=True)
+        
+    except Exception as e:
+        # Silently continue if progress file update fails
+        print(f"⚠️ Progress file update failed: {e}", file=sys.stderr, flush=True)
+
 def send_progress_notification_mcp(message: str, progress: float = None):
     """Send proper MCP progress notification (for Python script mode)"""
     global _write_stream
@@ -167,11 +311,14 @@ def send_progress_notification_stderr(message: str, progress: float = None):
         # Silently continue if even stderr fails
         pass
 
-def send_progress_notification(message: str, progress: float = None):
+def send_progress_notification(message: str, progress: float = None, operation_data: dict = None):
     """Send a progress notification using the appropriate method"""
     if _is_executable_mode:
+        # For executable mode: stderr + file-based tracking
         send_progress_notification_stderr(message, progress)
+        update_progress_file(message, progress, operation_data)
     else:
+        # For Python script mode: MCP notifications
         send_progress_notification_mcp(message, progress)
 
 # Report types supported by GPT Researcher
@@ -206,6 +353,7 @@ async def conduct_research_task(arguments: dict) -> list[dict]:
         
         # Debug initial configuration
         print(f"\n🔍 === INITIAL RESEARCHER CONFIG ===", file=sys.stderr)
+        update_progress_file("Debug: Initial researcher configuration", 0.12)
         print(f"📋 Report type: {report_type}", file=sys.stderr)
         print(f"📋 Retriever: {researcher.cfg.retriever}", file=sys.stderr)
         print(f"📋 LLM Provider: {researcher.cfg.smart_llm_provider}", file=sys.stderr)
@@ -222,6 +370,7 @@ async def conduct_research_task(arguments: dict) -> list[dict]:
         # Log configuration details for debugging
         config = researcher.cfg
         print(f"🔧 Research configuration:", file=sys.stderr)
+        update_progress_file("Logging research configuration", 0.18)
         print(f"   Retrievers: {[r.__name__ for r in researcher.retrievers]}", file=sys.stderr)
         print(f"   Max iterations: {config.max_iterations}", file=sys.stderr)
         print(f"   Max search results per query: {config.max_search_results_per_query}", file=sys.stderr)
@@ -232,7 +381,73 @@ async def conduct_research_task(arguments: dict) -> list[dict]:
         
         # Conduct research with progress updates
         send_progress_notification("🌐 Conducting web research...", 0.3)
-        research_result = await researcher.conduct_research()
+        
+        # Add progress tracking hooks
+        print(f"🕐 Research started at: {datetime.now().isoformat()}", file=sys.stderr, flush=True)
+        update_progress_file("Web research phase started", 0.35)
+        
+        # Add periodic progress tracking during research
+        import asyncio
+        
+        async def track_research_progress():
+            """Track research progress periodically"""
+            for i in range(20):  # Check 20 times over ~5 minutes
+                await asyncio.sleep(15)  # 15 second intervals
+                progress = 0.35 + (i * 0.0125)  # Increment from 35% to 60%
+                update_progress_file(f"Web search in progress... (step {i+1}/20)", progress)
+                print(f"🔄 Research progress check {i+1}/20 at {datetime.now().isoformat()}", file=sys.stderr, flush=True)
+                
+                # Add hang detection warnings
+                if i >= 12:  # After 3 minutes
+                    update_progress_file(f"WARNING: Research taking longer than expected (step {i+1}/20)", progress, {
+                        "warning": "extended_duration",
+                        "duration_seconds": (i+1) * 15
+                    })
+        
+        # Start background progress tracking
+        progress_task = asyncio.create_task(track_research_progress())
+        
+        try:
+            # Use asyncio.wait_for with an 8-minute timeout for comprehensive research
+            research_result = await asyncio.wait_for(
+                researcher.conduct_research(), 
+                timeout=480  # 8 minutes timeout
+            )
+            progress_task.cancel()  # Stop progress tracking
+            try:
+                await progress_task
+            except asyncio.CancelledError:
+                pass
+        except asyncio.TimeoutError:
+            progress_task.cancel()
+            try:
+                await progress_task
+            except asyncio.CancelledError:
+                pass
+            
+            # Log timeout error
+            error_msg = "Research timed out after 8 minutes"
+            print(f"❌ {error_msg}", file=sys.stderr, flush=True)
+            update_progress_file(f"TIMEOUT: {error_msg}", 0.0, {
+                "error_type": "TimeoutError",
+                "timeout_duration": 480,
+                "last_progress": "Web research operations"
+            })
+            
+            return [{
+                "type": "text",
+                "text": f"Error: {error_msg}\n\nThe web research operations took too long to complete. This may be due to network issues, rate limiting, or API problems. Please try again in a few minutes."
+            }]
+        except Exception as e:
+            progress_task.cancel()  # Stop progress tracking on error
+            try:
+                await progress_task
+            except asyncio.CancelledError:
+                pass
+            raise e
+        
+        print(f"🕐 Research completed at: {datetime.now().isoformat()}", file=sys.stderr, flush=True)
+        update_progress_file("Web research phase completed", 0.6)
         
         # Log research results for debugging
         context_length = len(researcher.get_research_context()) if hasattr(researcher, 'get_research_context') else 0
@@ -240,6 +455,11 @@ async def conduct_research_task(arguments: dict) -> list[dict]:
         urls_visited = len(researcher.visited_urls) if hasattr(researcher, 'visited_urls') else 0
         
         print(f"📊 Research completed:", file=sys.stderr)
+        update_progress_file("Research phase completed - analyzing results", 0.65, {
+            "sources_found": sources_found,
+            "context_length": context_length,
+            "urls_visited": urls_visited
+        })
         print(f"   Sources found: {sources_found}", file=sys.stderr)
         print(f"   Context length: {context_length}", file=sys.stderr)
         print(f"   URLs visited: {urls_visited}", file=sys.stderr)
@@ -313,10 +533,28 @@ async def conduct_research_task(arguments: dict) -> list[dict]:
         
         send_progress_notification("📝 Analyzing findings and generating report...", 0.7)
         
+        # Add detailed logging for report generation
+        print(f"📝 Starting report generation at: {datetime.now().isoformat()}", file=sys.stderr, flush=True)
+        update_progress_file("Report generation started", 0.75, {
+            "context_chars": context_length,
+            "sources_found": sources_found
+        })
+        
         # Generate report
         report = await researcher.write_report()
         
-        send_progress_notification("✅ Research completed successfully!", 1.0)
+        print(f"📝 Report generation completed at: {datetime.now().isoformat()}", file=sys.stderr, flush=True)
+        update_progress_file("Report generation completed", 0.95, {
+            "report_length": len(report) if report else 0
+        })
+        
+        send_progress_notification("✅ Research completed successfully!", 1.0, {
+            "sources_found": sources_found,
+            "urls_visited": urls_visited,
+            "context_length": context_length,
+            "report_type": report_type,
+            "query": query
+        })
         
         # Format the response with comprehensive metadata
         response_text = f"""# Research Report: {query}
@@ -386,6 +624,7 @@ async def quick_research(arguments: dict) -> list[dict]:
         
         # Log configuration details for debugging
         print(f"🔧 Research configuration:", file=sys.stderr)
+        update_progress_file("Quick research: logging configuration", 0.35)
         print(f"   Retrievers: {[r.__name__ for r in researcher.retrievers]}", file=sys.stderr)
         print(f"   Max iterations: {config.max_iterations}", file=sys.stderr)
         print(f"   Max search results per query: {config.max_search_results_per_query}", file=sys.stderr)
@@ -393,11 +632,90 @@ async def quick_research(arguments: dict) -> list[dict]:
         
         send_progress_notification("🔎 Gathering initial sources...", 0.4)
         
+        # Add detailed logging for research process
+        print(f"🔍 Starting research with {len(researcher.retrievers)} retrievers", file=sys.stderr, flush=True)
+        update_progress_file("Initializing retrievers", 0.45, {"retrievers": len(researcher.retrievers)})
+        
+        # Add detailed logging for quick research
+        print(f"🔍 Quick research starting with {len(researcher.retrievers)} retrievers", file=sys.stderr, flush=True)
+        update_progress_file("Quick research: initializing retrievers", 0.45, {
+            "max_iterations": config.max_iterations,
+            "max_results_per_query": config.max_search_results_per_query
+        })
+        
         # Conduct research with detailed error tracking
-        research_result = await researcher.conduct_research()
+        print(f"📡 Beginning quick search operations...", file=sys.stderr, flush=True)
+        update_progress_file("Quick research: starting search", 0.5)
+        
+        # Add periodic progress tracking for quick research
+        async def track_quick_research_progress():
+            """Track quick research progress periodically"""
+            for i in range(12):  # Check 12 times over ~3 minutes (extended)
+                await asyncio.sleep(15)  # 15 second intervals
+                progress = 0.5 + (i * 0.02)  # Increment from 50% to 74%
+                update_progress_file(f"Quick search in progress... (step {i+1}/12)", progress)
+                print(f"🔄 Quick research progress check {i+1}/12 at {datetime.now().isoformat()}", file=sys.stderr, flush=True)
+                
+                # Add hang detection - if we've been running too long, log warning
+                if i >= 8:  # After 2 minutes
+                    update_progress_file(f"WARNING: Research taking longer than expected (step {i+1}/12)", progress, {
+                        "warning": "extended_duration",
+                        "duration_seconds": (i+1) * 15
+                    })
+        
+        # Start background progress tracking for quick research
+        quick_progress_task = asyncio.create_task(track_quick_research_progress())
+        
+        # Add timeout protection for the research call
+        try:
+            # Use asyncio.wait_for with a 4-minute timeout for quick research
+            research_result = await asyncio.wait_for(
+                researcher.conduct_research(), 
+                timeout=240  # 4 minutes timeout
+            )
+            quick_progress_task.cancel()  # Stop progress tracking
+            try:
+                await quick_progress_task
+            except asyncio.CancelledError:
+                pass
+        except asyncio.TimeoutError:
+            quick_progress_task.cancel()
+            try:
+                await quick_progress_task
+            except asyncio.CancelledError:
+                pass
+            
+            # Log timeout error
+            error_msg = "Quick research timed out after 4 minutes"
+            print(f"❌ {error_msg}", file=sys.stderr, flush=True)
+            update_progress_file(f"TIMEOUT: {error_msg}", 0.0, {
+                "error_type": "TimeoutError",
+                "timeout_duration": 240,
+                "last_progress": "Quick search operations"
+            })
+            
+            return [{
+                "type": "text",
+                "text": f"Error: {error_msg}\n\nThe web search operations took too long to complete. This may be due to network issues, rate limiting, or API problems. Please try again in a few minutes."
+            }]
+        except Exception as e:
+            quick_progress_task.cancel()  # Stop progress tracking on error
+            try:
+                await quick_progress_task
+            except asyncio.CancelledError:
+                pass
+            raise e
+        
+        print(f"📡 Quick search operations completed", file=sys.stderr, flush=True)
+        update_progress_file("Quick research: search completed", 0.7)
         
         # Log research results for debugging
         print(f"📊 Research completed:", file=sys.stderr)
+        update_progress_file("Quick research: analyzing results", 0.75, {
+            "sources_found": len(research_result) if research_result else 0,
+            "context_length": len(researcher.get_research_context()) if hasattr(researcher, 'get_research_context') else 0,
+            "urls_visited": len(researcher.visited_urls) if hasattr(researcher, 'visited_urls') else 0
+        })
         print(f"   Sources found: {len(research_result) if research_result else 0}", file=sys.stderr)
         print(f"   Context length: {len(researcher.get_research_context()) if hasattr(researcher, 'get_research_context') else 'Unknown'}", file=sys.stderr)
         print(f"   Visited URLs: {len(researcher.visited_urls) if hasattr(researcher, 'visited_urls') else 'Unknown'}", file=sys.stderr)
@@ -460,7 +778,12 @@ async def quick_research(arguments: dict) -> list[dict]:
         # Generate report
         report = await researcher.write_report()
         
-        send_progress_notification("✅ Quick research completed!", 1.0)
+        send_progress_notification("✅ Quick research completed!", 1.0, {
+            "sources_found": len(research_result) if research_result else 0,
+            "urls_visited": len(researcher.visited_urls) if hasattr(researcher, 'visited_urls') else 0,
+            "context_length": context_length,
+            "query": query
+        })
         
         # Get source information for detailed reporting
         sources_found = len(research_result) if research_result else 0
@@ -489,9 +812,18 @@ async def quick_research(arguments: dict) -> list[dict]:
     except Exception as e:
         error_msg = f"Quick research failed: {str(e)}"
         send_progress_notification(f"❌ {error_msg}", 0.0)
-        print(f"❌ {error_msg}", file=sys.stderr)
+        print(f"❌ {error_msg}", file=sys.stderr, flush=True)
         import traceback
-        print(f"Full traceback: {traceback.format_exc()}", file=sys.stderr)
+        full_traceback = traceback.format_exc()
+        print(f"Full traceback: {full_traceback}", file=sys.stderr, flush=True)
+        
+        # Log error to progress file
+        update_progress_file(f"ERROR: {error_msg}", 0.0, {
+            "error_type": type(e).__name__,
+            "error_details": str(e),
+            "traceback_preview": full_traceback[:500]
+        })
+        
         return [{
             "type": "text",
             "text": f"Error: {error_msg}\n\nPlease check the logs for detailed error information."
@@ -718,10 +1050,15 @@ async def main():
             sys.stderr.reconfigure(encoding='utf-8')
         
         print(f"🚀 Starting GPT Researcher MCP Server (Streaming) in {mode_str} mode...", file=sys.stderr)
+        update_progress_file(f"Starting MCP server in {mode_str} mode", 0.05)
+        
+        # Initialize progress tracking for executable mode
+        init_progress_tracking()
         
         # Check basic configuration
         config = Config()
         print(f"📊 LLM Provider: {config.smart_llm_provider}", file=sys.stderr)
+        update_progress_file("Checking system configuration", 0.08)
         print(f"🔍 Retrievers: {', '.join(config.retrievers) if hasattr(config, 'retrievers') else 'Unknown'}", file=sys.stderr)
         
         async with stdio_server() as (read_stream, write_stream):
