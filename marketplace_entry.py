@@ -25,6 +25,21 @@ marketplace_mcps = [
             'Detailed source analysis and verification',
             'Multiple research depth levels',
             'Professional report formatting'
-        ]
+        ],
+        'requirements': {
+            'api_key': 'ExpertGPT Personal API Key',
+            'api_key_url': 'https://expertgpt.apps1-ir-int.icloud.intel.com/personal_api_keys',
+            'setup_instructions': {
+                'windows': [
+                    '1. Get your ExpertGPT Personal API Key from: https://expertgpt.apps1-ir-int.icloud.intel.com/personal_api_keys',
+                    '2. Open System Properties: Win+R → sysdm.cpl → Advanced → Environment Variables',
+                    '3. Under "User variables", click "New"',
+                    '4. Variable name: EGPT_API_KEY',
+                    '5. Variable value: [Your ExpertGPT API Key]',
+                    '6. Click OK and restart DataAgent',
+                    'Alternative: Set via Command Prompt → setx EGPT_API_KEY "your-api-key-here"'
+                ]
+            }
+        }
     }
 ]
